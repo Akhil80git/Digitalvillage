@@ -81,10 +81,11 @@ export default defineConfig(() => {
             },
             {
               urlPattern:
-                /^https:\/\/([abc]\.tile\.openstreetmap\.(org|fr)|server\.arcgisonline\.com)\/.*/i,
-              handler: 'StaleWhileRevalidate',
+                /^https:\/\/(([abc]\.)?tile\.openstreetmap\.org|[abcd]\.basemaps\.cartocdn\.com|mt[0-3]\.google\.com|server\.arcgisonline\.com)\/.*/i,
+              handler: 'NetworkFirst',
               options: {
-                cacheName: 'village-map-tiles',
+                cacheName: 'village-map-tiles-v3',
+                networkTimeoutSeconds: 5,
                 expiration: {
                   maxEntries: 600,
                   maxAgeSeconds: 60 * 60 * 24 * 30,
@@ -95,8 +96,7 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
       // Copies src/assets into dist/ so root-relative URLs like

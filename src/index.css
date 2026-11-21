@@ -41,7 +41,7 @@ html.dark .leaflet-container {
   background: #0f172a;
 }
 
-html.dark .grampath-dark-osm .leaflet-tile-pane {
+html.dark .grampath-dark-osm .leaflet-tile-pane img.leaflet-tile {
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
 }
 

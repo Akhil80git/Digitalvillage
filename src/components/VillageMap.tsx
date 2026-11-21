@@ -21,7 +21,7 @@ import {
 import type { GpsQualityReport } from '../utils/gpsFilter.ts';
 import { TurnIcon } from './NavigationPanel.tsx';
 
-export type BaseLayerId = 'osm_hot' | 'osm_standard' | 'satellite';
+export type BaseLayerId = 'osm_standard' | 'osm_clean' | 'satellite';
 
 export type MapInteractionMode = 'browse' | 'manual_trace' | 'pick_user_location';
 
@@ -65,27 +65,52 @@ interface VillageMapProps {
 
 const TILE_LAYERS: Record<
   BaseLayerId,
-  { label: string; url: string; attribution: string; maxZoom: number }
+  {
+    label: string;
+    url: string;
+    fallbackUrl?: string;
+    fallbackMaxNativeZoom?: number;
+    fallbackSubdomains?: string;
+    attribution: string;
+    maxZoom: number;
+    maxNativeZoom: number;
+    subdomains?: string;
+  }
 > = {
-  osm_hot: {
-    label: 'Village',
-    url: 'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap',
-    maxZoom: 20,
-  },
   osm_standard: {
     label: 'OSM',
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    fallbackUrl: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    fallbackMaxNativeZoom: 19,
+    fallbackSubdomains: 'abcd',
     attribution: '&copy; OpenStreetMap',
     maxZoom: 20,
+    maxNativeZoom: 19,
+  },
+  osm_clean: {
+    label: 'Street',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    fallbackMaxNativeZoom: 19,
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 20,
+    maxNativeZoom: 19,
+    subdomains: 'abcd',
   },
   satellite: {
     label: 'Satellite',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Imagery &copy; Esri',
+    url: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    fallbackUrl:
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    fallbackMaxNativeZoom: 18,
+    attribution: 'Imagery &copy; Google / Esri',
     maxZoom: 20,
+    maxNativeZoom: 20,
+    subdomains: '0123',
   },
 };
+
+const BASE_LAYER_STORAGE_KEY = 'grampath_base_layer';
 
 export default function VillageMap({
   roads,
@@ -141,9 +166,28 @@ export default function VillageMap({
   const isProgrammaticMoveRef = useRef(false);
   const isProgrammaticRotateRef = useRef(false);
 
-  const [baseLayer, setBaseLayer] = useState<BaseLayerId>('osm_hot');
+  const [baseLayer, setBaseLayer] = useState<BaseLayerId>(() => {
+    try {
+      const saved = localStorage.getItem(BASE_LAYER_STORAGE_KEY);
+      if (saved === 'osm_standard' || saved === 'osm_clean' || saved === 'satellite') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'osm_standard';
+  });
   const [mapBearing, setMapBearing] = useState<number>(initialView.bearing ?? 0);
   const [autoRotateHeading, setAutoRotateHeading] = useState(false);
+
+  const handleSelectBaseLayer = (nextLayer: BaseLayerId) => {
+    setBaseLayer(nextLayer);
+    try {
+      localStorage.setItem(BASE_LAYER_STORAGE_KEY, nextLayer);
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -162,13 +206,6 @@ export default function VillageMap({
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
-
-    const cfg = TILE_LAYERS.osm_hot;
-    tileLayerRef.current = L.tileLayer(cfg.url, {
-      attribution: cfg.attribution,
-      maxZoom: cfg.maxZoom,
-      maxNativeZoom: 19,
-    }).addTo(map);
 
     roadsLayerRef.current = L.layerGroup().addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
@@ -211,32 +248,78 @@ export default function VillageMap({
     map.on('moveend', syncView);
     map.on('zoomend', syncView);
 
-    // ResizeObserver ensures center map stays crisp when mobile/vertical panels resize
+    // ResizeObserver + initial frame ensure center map stays crisp when mobile/vertical panels resize
     const ro = new ResizeObserver(() => {
       map.invalidateSize();
     });
     ro.observe(containerRef.current);
+    const rafId = requestAnimationFrame(() => map.invalidateSize());
+    const settleTimer = setTimeout(() => map.invalidateSize(), 150);
 
     mapRef.current = map;
 
     return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(settleTimer);
       ro.disconnect();
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
     };
   }, []);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
-    const cfg = TILE_LAYERS[baseLayer];
-    tileLayerRef.current = L.tileLayer(cfg.url, {
-      attribution: cfg.attribution,
-      maxZoom: cfg.maxZoom,
-      maxNativeZoom: 19,
-    }).addTo(map);
-    tileLayerRef.current.bringToBack();
+    let cancelled = false;
+
+    const attachLayer = (useFallback: boolean) => {
+      if (cancelled) return;
+      if (tileLayerRef.current) {
+        map.removeLayer(tileLayerRef.current);
+        tileLayerRef.current = null;
+      }
+      const cfg = TILE_LAYERS[baseLayer];
+      const url = useFallback && cfg.fallbackUrl ? cfg.fallbackUrl : cfg.url;
+      const maxNativeZoom =
+        useFallback && cfg.fallbackMaxNativeZoom ? cfg.fallbackMaxNativeZoom : cfg.maxNativeZoom;
+      const subdomains =
+        useFallback && cfg.fallbackUrl ? cfg.fallbackSubdomains : cfg.subdomains;
+
+      let errorCount = 0;
+      let loadedAny = false;
+      let switchedToFallback = useFallback;
+
+      const layer = L.tileLayer(url, {
+        attribution: cfg.attribution,
+        maxZoom: cfg.maxZoom,
+        maxNativeZoom,
+        keepBuffer: 4,
+        updateWhenZooming: false,
+        updateWhenIdle: false,
+        detectRetina: false,
+        ...(subdomains ? { subdomains } : {}),
+      });
+      layer.on('tileload', () => {
+        loadedAny = true;
+      });
+      layer.on('tileerror', () => {
+        errorCount += 1;
+        if (!cancelled && !loadedAny && !switchedToFallback && cfg.fallbackUrl && errorCount >= 3) {
+          switchedToFallback = true;
+          attachLayer(true);
+        }
+      });
+      layer.addTo(map);
+      layer.bringToBack();
+      tileLayerRef.current = layer;
+    };
+
+    attachLayer(false);
+
+    return () => {
+      cancelled = true;
+    };
   }, [baseLayer]);
 
   useEffect(() => {
@@ -258,14 +341,15 @@ export default function VillageMap({
         animate: true,
       });
     } else if (focusTarget.zoom != null) {
-      mapRef.current.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom, {
-        duration: 0.45,
+      mapRef.current.setView([focusTarget.lat, focusTarget.lng], focusTarget.zoom, {
+        animate: true,
+        duration: 0.25,
       });
     } else {
       // Preserve whatever zoom level and rotation the user currently chose!
       mapRef.current.panTo([focusTarget.lat, focusTarget.lng], {
         animate: true,
-        duration: 0.3,
+        duration: 0.25,
       });
     }
   }, [focusTarget]);
@@ -840,11 +924,10 @@ export default function VillageMap({
   }, [currentGps, userHeadingDeg]);
 
   return (
-    <div className="relative w-full h-full">
-      <div
-        ref={containerRef}
-        className={`w-full h-full z-0 ${baseLayer !== 'satellite' ? 'grampath-dark-osm' : ''}`}
-      />
+    <div
+      className={`relative w-full h-full ${baseLayer !== 'satellite' ? 'grampath-dark-osm' : ''}`}
+    >
+      <div ref={containerRef} className="w-full h-full z-0" />
 
       {/* Live GPS Precision Readout & Quick Controls (Top Left) */}
       <div
@@ -909,7 +992,7 @@ export default function VillageMap({
             <button
               key={id}
               type="button"
-              onClick={() => setBaseLayer(id)}
+              onClick={() => handleSelectBaseLayer(id)}
               className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 baseLayer === id
                   ? 'bg-slate-900 dark:bg-emerald-600 text-white'

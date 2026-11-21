@@ -1959,7 +1959,7 @@ export default function App() {
             </aside>
 
             {/* Big Map Viewport with Floating Dual Search Bars (Navigate Mode Only!) */}
-            <div className="flex-1 min-w-0 h-full relative">
+            <div className="flex-1 min-w-0 min-h-0 w-full h-full relative">
               {/* Floating Dual Search Bars: Hidden automatically in Add & Preview modes */}
               <div className="absolute top-2.5 inset-x-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-xl z-[480] grid grid-cols-2 sm:flex sm:items-center gap-1.5 sm:gap-2">
                 {/* Search Bar 1: Area / Village */}
