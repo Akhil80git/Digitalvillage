@@ -1,6 +1,7 @@
 import type {
   JunctionBranch,
   JunctionDirection,
+  LatLngPoint,
   NavigationInstruction,
   RoadJunction,
   TurnDirection,
@@ -1272,5 +1273,64 @@ export function autoLinkNewRoadsToNetwork(
     updatedExistingRoads: updatedExisting,
     linkedSummaries,
   };
+}
+
+export interface SimWaypoint {
+  lat: number;
+  lng: number;
+  bearingDeg: number;
+  cumulativeMeters: number;
+}
+
+/**
+ * Densifies a recorded polyline into ~stepMeters micro-waypoints with smooth heading
+ * so the at-home Simulator moves steadily even across long straight segments.
+ */
+export function buildSimulatorWaypoints(
+  points: LatLngPoint[],
+  stepMeters = 2
+): SimWaypoint[] {
+  if (points.length === 0) return [];
+  if (points.length === 1) {
+    return [{ lat: points[0].lat, lng: points[0].lng, bearingDeg: 0, cumulativeMeters: 0 }];
+  }
+
+  const result: SimWaypoint[] = [];
+  let totalMeters = 0;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    const segLen = haversineMeters(a, b);
+    const bearing = segLen >= 0.3 ? calculateBearing(a, b) : result[result.length - 1]?.bearingDeg ?? 0;
+
+    if (i === 0) {
+      result.push({
+        lat: a.lat,
+        lng: a.lng,
+        bearingDeg: bearing,
+        cumulativeMeters: 0,
+      });
+    }
+
+    if (segLen < 0.3) continue;
+
+    const steps = Math.max(1, Math.ceil(segLen / stepMeters));
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      const lat = a.lat + (b.lat - a.lat) * t;
+      const lng = a.lng + (b.lng - a.lng) * t;
+      const prev = result[result.length - 1];
+      totalMeters += haversineMeters(prev, { lat, lng });
+      result.push({
+        lat,
+        lng,
+        bearingDeg: bearing,
+        cumulativeMeters: totalMeters,
+      });
+    }
+  }
+
+  return result;
 }
 

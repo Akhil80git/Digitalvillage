@@ -7,6 +7,7 @@ import {
   Moon,
   Navigation,
   PlusCircle,
+  Route,
   Search,
   Store,
   Sun,
@@ -14,12 +15,17 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AddWalkWorkspace, { type StraightSymbolAction } from './components/AddWalkWorkspace.tsx';
+import AutoWorkspace from './components/AutoWorkspace.tsx';
 import NavigationPanel from './components/NavigationPanel.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
 import { PWAInstallButton } from './components/PWAInstallButton.tsx';
 import SavedDataView from './components/SavedDataView.tsx';
-import VillageMap, { type MapInteractionMode } from './components/VillageMap.tsx';
+import VillageMap, {
+  type AutoTripOverlay,
+  type MapInteractionMode,
+} from './components/VillageMap.tsx';
 import type {
+  AutoTrip,
   CaptureMode,
   HouseSide,
   JunctionDirection,
@@ -54,9 +60,15 @@ import {
   reverseGeocodeVillage,
   searchPlaceNominatim,
 } from './utils/osmClient.ts';
-import { clearLocalStore, loadLocalStore, saveLocalStore } from './utils/storage.ts';
+import {
+  clearLocalStore,
+  loadAutoTrips,
+  loadLocalStore,
+  saveAutoTrips,
+  saveLocalStore,
+} from './utils/storage.ts';
 
-type WorkspaceMode = 'navigate' | 'add' | 'preview';
+type WorkspaceMode = 'navigate' | 'add' | 'preview' | 'auto';
 
 const DRAFT_WALK_KEY = 'grampath_walk_draft_v2';
 
@@ -79,15 +91,24 @@ export default function App() {
     }
   }, [theme]);
 
-  // LocalStorage data (roads + left/right houses)
+  // LocalStorage data (roads + left/right houses + independent auto trips)
   const initialStore = useMemo(() => loadLocalStore(), []);
+  const initialAutoTrips = useMemo(() => loadAutoTrips(), []);
   const [roads, setRoads] = useState<VillageRoad[]>(initialStore.roads);
   const [houses, setHouses] = useState<VillageHouse[]>(initialStore.houses);
+  const [autoTrips, setAutoTrips] = useState<AutoTrip[]>(initialAutoTrips);
+  const [selectedAutoTripId, setSelectedAutoTripId] = useState<string | null>(
+    () => initialAutoTrips[0]?.id ?? null
+  );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     saveLocalStore({ roads, houses });
   }, [roads, houses]);
+
+  useEffect(() => {
+    saveAutoTrips(autoTrips);
+  }, [autoTrips]);
 
   // Search 1 (Navigate only): Village / Location Search
   const [areaQuery, setAreaQuery] = useState('');
@@ -222,6 +243,24 @@ export default function App() {
   });
   recordingStateRef.current = { isRecording, isPaused, gpsPrecisionMode, captureMode };
 
+  // Auto Trip Recording & Slow At-Home Simulator State
+  const [isAutoRecording, setIsAutoRecording] = useState(false);
+  const [isAutoPaused, setIsAutoPaused] = useState(false);
+  const [autoPoints, setAutoPoints] = useState<LatLngPoint[]>([]);
+  const [autoElapsedSeconds, setAutoElapsedSeconds] = useState(0);
+  const [autoStartedAt, setAutoStartedAt] = useState<string | null>(null);
+  const [autoGpsError, setAutoGpsError] = useState<string | null>(null);
+  const [autoSimPoint, setAutoSimPoint] = useState<{
+    lat: number;
+    lng: number;
+    headingDeg: number;
+  } | null>(null);
+  const autoWatchIdRef = useRef<number | null>(null);
+  const lastAutoGpsRef = useRef<LatLngPoint | null>(null);
+  const lastAcceptedAutoTsRef = useRef<number>(0);
+  const autoStateRef = useRef({ isAutoRecording, isAutoPaused, gpsPrecisionMode });
+  autoStateRef.current = { isAutoRecording, isAutoPaused, gpsPrecisionMode };
+
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   const showToast = useCallback((msg: string) => {
@@ -250,10 +289,12 @@ export default function App() {
     }
   }, [walkSegments, draftHouses, draftJunctions]);
 
-  // PWA Screen Wake Lock: keeps mobile screen & GPS radio active at 1Hz while walking or live navigating
+  // PWA Screen Wake Lock: keeps mobile screen & GPS radio active at 1Hz while walking, auto-recording, or live navigating
   useEffect(() => {
     const keepAwake =
-      (mode === 'add' && isRecording && !isPaused) || (mode === 'navigate' && isLiveGps);
+      (mode === 'add' && isRecording && !isPaused) ||
+      (isAutoRecording && !isAutoPaused) ||
+      (mode === 'navigate' && isLiveGps);
     if (!keepAwake || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
 
     let sentinel: WakeLockSentinel | null = null;
@@ -282,11 +323,11 @@ export default function App() {
         sentinel.release().catch(() => {});
       }
     };
-  }, [mode, isRecording, isPaused, isLiveGps]);
+  }, [mode, isRecording, isPaused, isAutoRecording, isAutoPaused, isLiveGps]);
 
   // Device Compass Fallback when GPS speed is zero
   useEffect(() => {
-    const active = mode === 'add' || isLiveGps;
+    const active = mode === 'add' || mode === 'auto' || isAutoRecording || isLiveGps;
     if (!active || typeof window === 'undefined') return;
 
     const handleOrientation = (ev: DeviceOrientationEvent) => {
@@ -393,6 +434,110 @@ export default function App() {
     const t = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [isRecording, isPaused]);
+
+  // Auto Trip Timer
+  useEffect(() => {
+    if (!isAutoRecording || isAutoPaused) return;
+    const t = setInterval(() => setAutoElapsedSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [isAutoRecording, isAutoPaused]);
+
+  // Live GPS Watcher for Auto Trips Mode (records points continuously until Close & Save)
+  useEffect(() => {
+    if (mode !== 'auto' && !isAutoRecording) {
+      if (autoWatchIdRef.current !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(autoWatchIdRef.current);
+        autoWatchIdRef.current = null;
+      }
+      return;
+    }
+    if (!('geolocation' in navigator)) {
+      setAutoGpsError('Geolocation unavailable in this browser.');
+      return;
+    }
+    setAutoGpsError(null);
+    gpsSmootherRef.current.reset();
+
+    autoWatchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const {
+          isAutoRecording: activeAuto,
+          isAutoPaused: pausedAuto,
+          gpsPrecisionMode: pMode,
+        } = autoStateRef.current;
+
+        const rawPt: LatLngPoint = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          timestamp: pos.timestamp || Date.now(),
+        };
+        const prevPt = lastAutoGpsRef.current;
+        const quality = evaluateGpsFix(rawPt.accuracy, pMode);
+        const smoothed = gpsSmootherRef.current.update(rawPt, prevPt?.timestamp);
+
+        if (
+          pos.coords.heading != null &&
+          Number.isFinite(pos.coords.heading) &&
+          pos.coords.speed != null &&
+          pos.coords.speed >= 0.5
+        ) {
+          setUserHeadingDeg(pos.coords.heading);
+        } else if (prevPt && haversineMeters(prevPt, smoothed) >= 1.5) {
+          setUserHeadingDeg(calculateBearing(prevPt, smoothed));
+        }
+
+        lastAutoGpsRef.current = smoothed;
+        setUserLocation(smoothed);
+        if (activeAuto && !pausedAuto && autoFollowGpsRef.current) {
+          setFocusTarget({ lat: smoothed.lat, lng: smoothed.lng, key: Date.now() });
+        }
+        maybeDetectVillage(smoothed.lat, smoothed.lng);
+
+        if (!activeAuto || pausedAuto) return;
+
+        const nowTs = rawPt.timestamp || Date.now();
+        const fallbackSmoothOk =
+          rawPt.accuracy != null &&
+          rawPt.accuracy <= 12.0 &&
+          nowTs - lastAcceptedAutoTsRef.current >= 2500;
+
+        if (!quality.accepted && !fallbackSmoothOk) {
+          setAutoGpsError(
+            pMode === 'accurate_5m'
+              ? 'Waiting for ≤5m GPS lock outdoors'
+              : 'Weak GPS (>15m). Move to open sky'
+          );
+          return;
+        }
+        setAutoGpsError(null);
+        lastAcceptedAutoTsRef.current = nowTs;
+
+        const minStepMeters = pMode === 'accurate_5m' ? 1.5 : 2.5;
+        setAutoPoints((prev) => {
+          if (prev.length === 0) return [smoothed];
+          const lastPt = prev[prev.length - 1];
+          if (haversineMeters(lastPt, smoothed) < minStepMeters) return prev;
+          return [...prev, smoothed];
+        });
+      },
+      (err) => {
+        setAutoGpsError(
+          err.code === err.PERMISSION_DENIED
+            ? 'GPS permission denied. Use +Step to test.'
+            : `Waiting for GPS: ${err.message}`
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+
+    return () => {
+      if (autoWatchIdRef.current !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(autoWatchIdRef.current);
+        autoWatchIdRef.current = null;
+      }
+    };
+  }, [mode, isAutoRecording, maybeDetectVillage]);
 
   // Live GPS Watcher in Add Mode
   useEffect(() => {
@@ -1613,6 +1758,296 @@ export default function App() {
     setGpsError(null);
   };
 
+  // Independent Auto Trip Lifecycle (Start -> Pause/Resume -> Close & Save separate trip -> Simulate at home)
+  const handleStartAutoTrip = () => {
+    setMode('auto');
+    setTargetHouse(null);
+    setIsAutoRecording(true);
+    setIsAutoPaused(false);
+    setAutoElapsedSeconds(0);
+    setAutoStartedAt(new Date().toISOString());
+    setAutoGpsError(null);
+    setAutoSimPoint(null);
+    lastAcceptedAutoTsRef.current = 0;
+    autoFollowGpsRef.current = true;
+    setIsFollowingGps(true);
+    const startPt: LatLngPoint = {
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      accuracy: userLocation.accuracy ?? 3.0,
+      timestamp: Date.now(),
+    };
+    setAutoPoints([startPt]);
+    setFocusTarget({
+      lat: startPt.lat,
+      lng: startPt.lng,
+      zoom: mapViewRef.current.zoom < 18 ? 19 : undefined,
+      key: Date.now(),
+    });
+    handleLocateMe(true);
+  };
+
+  const handlePauseResumeAutoTrip = () => {
+    setIsAutoPaused((p) => !p);
+  };
+
+  const handleTestStepAuto = () => {
+    const h = userHeadingDeg ?? 15;
+    setAutoPoints((prev) => {
+      const last = prev[prev.length - 1] ?? userLocation;
+      const stepped = offsetCoord(last, h, 6);
+      const nextPt: LatLngPoint = {
+        lat: stepped.lat,
+        lng: stepped.lng,
+        accuracy: 2.0,
+        timestamp: Date.now(),
+      };
+      setUserLocation(nextPt);
+      if (autoFollowGpsRef.current) {
+        setFocusTarget({ lat: nextPt.lat, lng: nextPt.lng, key: Date.now() });
+      }
+      return prev.length === 0 ? [userLocation, nextPt] : [...prev, nextPt];
+    });
+  };
+
+  const handleCloseAndSaveAutoTrip = () => {
+    const cleanPoints: LatLngPoint[] = [];
+    for (const pt of autoPoints) {
+      if (cleanPoints.length === 0 || haversineMeters(cleanPoints[cleanPoints.length - 1], pt) >= 0.4) {
+        cleanPoints.push(pt);
+      }
+    }
+    if (cleanPoints.length < 2) {
+      showToast('Walk a few meters (or tap +Step) before closing & saving this trip.');
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const tripNum = autoTrips.length + 1;
+    const tripId = `trip-${Date.now()}`;
+    const roadId = `road-auto-${Date.now()}`;
+    const tripName = `Auto Road ${tripNum}`;
+    const dist = computePathDistance(cleanPoints);
+
+    const newRoad: VillageRoad = {
+      id: roadId,
+      name: tripName,
+      villageName: detectedVillage,
+      surface: 'concrete',
+      points: cleanPoints,
+      distanceMeters: dist,
+      durationSeconds: autoElapsedSeconds,
+      captureMode: 'gps_walk',
+      createdAt: nowIso,
+    };
+
+    const { linkedNewRoads, updatedExistingRoads } = autoLinkNewRoadsToNetwork(
+      [newRoad],
+      roads,
+      null
+    );
+    const savedRoad = linkedNewRoads[0];
+
+    const newTrip: AutoTrip = {
+      id: tripId,
+      name: tripName,
+      villageName: detectedVillage,
+      surface: 'concrete',
+      points: savedRoad.points,
+      distanceMeters: savedRoad.distanceMeters,
+      durationSeconds: autoElapsedSeconds,
+      startedAt: autoStartedAt ?? nowIso,
+      endedAt: nowIso,
+      linkedRoadId: savedRoad.id,
+      houses: [],
+    };
+
+    setRoads([savedRoad, ...updatedExistingRoads]);
+    setAutoTrips((prev) => [newTrip, ...prev]);
+    setSelectedAutoTripId(newTrip.id);
+    setIsAutoRecording(false);
+    setIsAutoPaused(false);
+    setAutoPoints([]);
+    setAutoElapsedSeconds(0);
+    setAutoStartedAt(null);
+    setAutoGpsError(null);
+    setFocusTarget({
+      lat: savedRoad.points[0].lat,
+      lng: savedRoad.points[0].lng,
+      boundsPoints: savedRoad.points.map((p) => ({ lat: p.lat, lng: p.lng })),
+      key: Date.now(),
+    });
+    showToast(`Saved "${tripName}" (${formatDistance(savedRoad.distanceMeters)}). Tap Play Sim anytime!`);
+  };
+
+  const handleDiscardAutoTrip = () => {
+    setIsAutoRecording(false);
+    setIsAutoPaused(false);
+    setAutoPoints([]);
+    setAutoElapsedSeconds(0);
+    setAutoStartedAt(null);
+    setAutoGpsError(null);
+  };
+
+  const handleFitTripRoad = useCallback((trip: AutoTrip) => {
+    if (trip.points.length >= 2) {
+      setFocusTarget({
+        lat: trip.points[0].lat,
+        lng: trip.points[0].lng,
+        boundsPoints: trip.points.map((p) => ({ lat: p.lat, lng: p.lng })),
+        key: Date.now(),
+      });
+    } else if (trip.points.length === 1) {
+      setFocusTarget({
+        lat: trip.points[0].lat,
+        lng: trip.points[0].lng,
+        zoom: 19,
+        key: Date.now(),
+      });
+    }
+  }, []);
+
+  const handleSelectAutoTrip = useCallback(
+    (tripId: string) => {
+      setSelectedAutoTripId(tripId);
+      const trip = autoTrips.find((t) => t.id === tripId);
+      if (trip) handleFitTripRoad(trip);
+    },
+    [autoTrips, handleFitTripRoad]
+  );
+
+  const handleUpdateAutoTripMeta = useCallback(
+    (tripId: string, patch: { name?: string; surface?: VillageRoad['surface'] }) => {
+      const target = autoTrips.find((t) => t.id === tripId);
+      if (!target) return;
+
+      setAutoTrips((prev) =>
+        prev.map((t) =>
+          t.id === tripId
+            ? {
+                ...t,
+                ...(patch.name != null ? { name: patch.name } : {}),
+                ...(patch.surface != null ? { surface: patch.surface } : {}),
+                houses:
+                  patch.name != null
+                    ? t.houses.map((h) => ({ ...h, roadName: patch.name! }))
+                    : t.houses,
+              }
+            : t
+        )
+      );
+
+      if (target.linkedRoadId) {
+        setRoads((prev) =>
+          prev.map((r) =>
+            r.id === target.linkedRoadId
+              ? {
+                  ...r,
+                  ...(patch.name != null ? { name: patch.name } : {}),
+                  ...(patch.surface != null ? { surface: patch.surface } : {}),
+                }
+              : r
+          )
+        );
+        if (patch.name != null) {
+          setHouses((prev) =>
+            prev.map((h) => (h.roadId === target.linkedRoadId ? { ...h, roadName: patch.name! } : h))
+          );
+        }
+      }
+    },
+    [autoTrips]
+  );
+
+  const handleDeleteAutoTrip = useCallback(
+    (tripId: string) => {
+      const target = autoTrips.find((t) => t.id === tripId);
+      const remaining = autoTrips.filter((t) => t.id !== tripId);
+      setAutoTrips(remaining);
+      if (selectedAutoTripId === tripId) {
+        setSelectedAutoTripId(remaining[0]?.id ?? null);
+        setAutoSimPoint(null);
+      }
+      if (target?.linkedRoadId) {
+        setRoads((prev) => prev.filter((r) => r.id !== target.linkedRoadId));
+        setHouses((prev) => prev.filter((h) => h.roadId !== target.linkedRoadId));
+      } else if (target && target.houses.length > 0) {
+        const houseIds = new Set(target.houses.map((h) => h.id));
+        setHouses((prev) => prev.filter((h) => !houseIds.has(h.id)));
+      }
+      showToast('Deleted Auto trip.');
+    },
+    [autoTrips, selectedAutoTripId, showToast]
+  );
+
+  const handleAutoSimPositionChange = useCallback(
+    (pos: { lat: number; lng: number; headingDeg: number } | null, panMap: boolean) => {
+      setAutoSimPoint(pos);
+      if (pos && panMap) {
+        setFocusTarget({
+          lat: pos.lat,
+          lng: pos.lng,
+          zoom: mapViewRef.current.zoom < 18 ? 19 : undefined,
+          key: Date.now(),
+        });
+      }
+    },
+    []
+  );
+
+  const handleAddHouseOnAutoTrip = useCallback(
+    (
+      tripId: string,
+      point: { lat: number; lng: number },
+      headingDeg: number,
+      houseNumber: string,
+      side: HouseSide,
+      shopName?: string,
+      note?: string
+    ) => {
+      const trip = autoTrips.find((t) => t.id === tripId);
+      if (!trip) return;
+      const sideBearing = side === 'left' ? (headingDeg + 270) % 360 : (headingDeg + 90) % 360;
+      const visual = offsetCoord(point, sideBearing, 7);
+
+      const newHouse: VillageHouse = {
+        id: `house-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        houseNumber,
+        shopName,
+        side,
+        lat: visual.lat,
+        lng: visual.lng,
+        roadLat: point.lat,
+        roadLng: point.lng,
+        roadId: trip.linkedRoadId ?? trip.id,
+        roadName: trip.name,
+        villageName: trip.villageName,
+        note,
+        createdAt: new Date().toISOString(),
+      };
+
+      setAutoTrips((prev) =>
+        prev.map((t) => (t.id === tripId ? { ...t, houses: [...t.houses, newHouse] } : t))
+      );
+      setHouses((prev) => [newHouse, ...prev]);
+      showToast(
+        `Added ${houseNumber}${shopName ? ` (${shopName})` : ''} (${
+          side === 'left' ? 'Left' : 'Right'
+        })`
+      );
+    },
+    [autoTrips, showToast]
+  );
+
+  const handleRemoveHouseOnAutoTrip = useCallback((tripId: string, houseId: string) => {
+    setAutoTrips((prev) =>
+      prev.map((t) =>
+        t.id === tripId ? { ...t, houses: t.houses.filter((h) => h.id !== houseId) } : t
+      )
+    );
+    setHouses((prev) => prev.filter((h) => h.id !== houseId));
+  }, []);
+
   const interactionMode: MapInteractionMode = useMemo(() => {
     if (isPickingSpot) return 'pick_user_location';
     if (mode === 'add' && isRecording && !isPaused && captureMode === 'manual_trace') {
@@ -1682,6 +2117,66 @@ export default function App() {
     />
   );
 
+  const selectedAutoTrip = useMemo(
+    () => (selectedAutoTripId ? autoTrips.find((t) => t.id === selectedAutoTripId) ?? null : null),
+    [autoTrips, selectedAutoTripId]
+  );
+
+  const autoTripOverlay: AutoTripOverlay | null = useMemo(() => {
+    if (isAutoRecording) {
+      return {
+        points: autoPoints,
+        simPoint: null,
+        houses: [],
+      };
+    }
+    if (selectedAutoTrip) {
+      return {
+        points: selectedAutoTrip.points,
+        simPoint: autoSimPoint,
+        houses: selectedAutoTrip.houses,
+      };
+    }
+    return null;
+  }, [isAutoRecording, autoPoints, selectedAutoTrip, autoSimPoint]);
+
+  const autoMapElement = (
+    <VillageMap
+      roads={roads}
+      houses={houses}
+      draftHouses={[]}
+      activeWalkSegments={[]}
+      draftJunctions={[]}
+      currentGps={userLocation}
+      userHeadingDeg={userHeadingDeg}
+      gpsQuality={gpsQuality}
+      routeResult={null}
+      alternativeRoutes={[]}
+      liveProgress={null}
+      targetHouse={null}
+      darkMode={theme === 'dark'}
+      isolateNavigation={false}
+      activeInstruction={null}
+      distanceToNextTurnMeters={null}
+      interactionMode="browse"
+      onMapClick={() => {}}
+      onNavigateHouse={startNavigateToHouse}
+      onSelectPendingBranch={handleSelectPendingBranch}
+      onCenterGps={() => handleLocateMe(true)}
+      isFollowingGps={isFollowingGps}
+      initialView={mapViewRef.current}
+      onViewChange={(view) => {
+        mapViewRef.current = view;
+      }}
+      onUserDrag={() => {
+        autoFollowGpsRef.current = false;
+        setIsFollowingGps(false);
+      }}
+      focusTarget={focusTarget}
+      autoTripOverlay={autoTripOverlay}
+    />
+  );
+
   const mapElement = (
     <VillageMap
       roads={roads}
@@ -1722,17 +2217,38 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] w-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      {/* Clean Single-Row Top Header — Search Bars are ONLY in Navigate Mode so Add Mode stays huge! */}
-      <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-2 sm:px-5 h-12 flex items-center justify-between gap-1.5 sm:gap-3 z-40">
+      {/* Clean Single-Row Top Header — Left "Auto" Button replaces logo; Search Bars stay hidden outside Navigate Mode */}
+      <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-2 sm:px-5 h-12 flex items-center justify-between gap-1 sm:gap-3 z-40">
         <button
           type="button"
           onClick={() => {
-            setMode('navigate');
-            handleExitNavigation();
+            setMode('auto');
+            setTargetHouse(null);
+            if (!isAutoRecording) {
+              const trip =
+                (selectedAutoTripId ? autoTrips.find((t) => t.id === selectedAutoTripId) : null) ??
+                autoTrips[0] ??
+                null;
+              if (trip) {
+                setSelectedAutoTripId(trip.id);
+                setTimeout(() => handleFitTripRoad(trip), 60);
+              }
+            }
           }}
-          className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white font-display whitespace-nowrap shrink-0 cursor-pointer"
+          className={`px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-bold rounded-xl inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors border ${
+            mode === 'auto'
+              ? 'bg-sky-600 text-white border-sky-700 shadow-xs'
+              : isAutoRecording
+              ? 'bg-red-50 dark:bg-red-950/70 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
         >
-          GramPath
+          {isAutoRecording ? (
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+          ) : (
+            <Route className="w-3.5 h-3.5 shrink-0" />
+          )}
+          <span>Auto</span>
         </button>
 
         <nav className="flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl shrink-0">
@@ -1850,7 +2366,15 @@ export default function App() {
                 })
               }
               onFitAll={() => handleFitAllSaved()}
-              onDeleteHouse={(id) => setHouses((prev) => prev.filter((h) => h.id !== id))}
+              onDeleteHouse={(id) => {
+                setHouses((prev) => prev.filter((h) => h.id !== id));
+                setAutoTrips((prev) =>
+                  prev.map((t) => ({
+                    ...t,
+                    houses: t.houses.filter((h) => h.id !== id),
+                  }))
+                );
+              }}
               onDeleteRoad={(id) => {
                 setRoads((prev) => prev.filter((r) => r.id !== id));
                 setHouses((prev) => prev.filter((h) => h.roadId !== id));
@@ -1877,6 +2401,44 @@ export default function App() {
               }}
             />
           </div>
+        ) : mode === 'auto' ? (
+          <AutoWorkspace
+            trips={autoTrips}
+            selectedTripId={selectedAutoTripId}
+            onSelectTrip={handleSelectAutoTrip}
+            onDeleteTrip={handleDeleteAutoTrip}
+            onUpdateTripMeta={handleUpdateAutoTripMeta}
+            onFitTripRoad={handleFitTripRoad}
+            isAutoRecording={isAutoRecording}
+            isAutoPaused={isAutoPaused}
+            autoPoints={autoPoints}
+            autoElapsedSeconds={autoElapsedSeconds}
+            gpsPrecisionMode={gpsPrecisionMode}
+            onTogglePrecisionMode={() =>
+              setGpsPrecisionMode((m) => (m === 'accurate_5m' ? 'relaxed_15m' : 'accurate_5m'))
+            }
+            gpsQuality={gpsQuality}
+            gpsError={autoGpsError}
+            onStartAuto={handleStartAutoTrip}
+            onPauseResumeAuto={handlePauseResumeAutoTrip}
+            onCloseAndSaveAuto={handleCloseAndSaveAutoTrip}
+            onDiscardAuto={handleDiscardAutoTrip}
+            onTestStepAuto={handleTestStepAuto}
+            onLocateMe={() => handleLocateMe(true)}
+            onSimPositionChange={handleAutoSimPositionChange}
+            onAddHouseOnTrip={handleAddHouseOnAutoTrip}
+            onRemoveHouseOnTrip={handleRemoveHouseOnAutoTrip}
+            onFocusHouse={(house) =>
+              setFocusTarget({
+                lat: house.lat,
+                lng: house.lng,
+                zoom: 19,
+                key: Date.now(),
+              })
+            }
+            nextSuggestedHouse={nextSuggestedHouse}
+            mapSlot={autoMapElement}
+          />
         ) : mode === 'add' ? (
           <AddWalkWorkspace
             captureMode={captureMode}

@@ -25,6 +25,12 @@ export type BaseLayerId = 'osm_standard' | 'osm_clean' | 'satellite';
 
 export type MapInteractionMode = 'browse' | 'manual_trace' | 'pick_user_location';
 
+export interface AutoTripOverlay {
+  points: LatLngPoint[];
+  simPoint?: { lat: number; lng: number; headingDeg: number } | null;
+  houses: VillageHouse[];
+}
+
 interface VillageMapProps {
   roads: VillageRoad[];
   houses: VillageHouse[];
@@ -61,6 +67,7 @@ interface VillageMapProps {
     boundsPoints?: { lat: number; lng: number }[];
     key: number;
   } | null;
+  autoTripOverlay?: AutoTripOverlay | null;
 }
 
 const TILE_LAYERS: Record<
@@ -142,6 +149,7 @@ export default function VillageMap({
   onViewChange,
   onUserDrag,
   focusTarget,
+  autoTripOverlay = null,
 }: VillageMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -149,6 +157,7 @@ export default function VillageMap({
   const roadsLayerRef = useRef<L.LayerGroup | null>(null);
   const housesLayerRef = useRef<L.LayerGroup | null>(null);
   const walkLayerRef = useRef<L.LayerGroup | null>(null);
+  const autoTripLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const gpsLayerRef = useRef<L.LayerGroup | null>(null);
 
@@ -210,6 +219,7 @@ export default function VillageMap({
     roadsLayerRef.current = L.layerGroup().addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
     walkLayerRef.current = L.layerGroup().addTo(map);
+    autoTripLayerRef.current = L.layerGroup().addTo(map);
     housesLayerRef.current = L.layerGroup().addTo(map);
     gpsLayerRef.current = L.layerGroup().addTo(map);
 
@@ -507,10 +517,16 @@ export default function VillageMap({
     if (!group) return;
     group.clearLayers();
 
-    const visibleHouses =
-      isolateNavigation && targetHouse
-        ? [targetHouse]
-        : [...houses, ...draftHouses];
+    let visibleHouses: VillageHouse[];
+    if (isolateNavigation && targetHouse) {
+      visibleHouses = [targetHouse];
+    } else {
+      const merged = new Map<string, VillageHouse>();
+      for (const h of houses) merged.set(h.id, h);
+      for (const h of draftHouses) merged.set(h.id, h);
+      for (const h of autoTripOverlay?.houses ?? []) merged.set(h.id, h);
+      visibleHouses = Array.from(merged.values());
+    }
 
     for (const h of visibleHouses) {
       const isTarget = targetHouse?.id === h.id;
@@ -598,7 +614,7 @@ export default function VillageMap({
       marker.bindPopup(popupEl);
       marker.addTo(group);
     }
-  }, [houses, draftHouses, startHouse, targetHouse, isolateNavigation, routeResult, darkMode]);
+  }, [houses, draftHouses, autoTripOverlay, startHouse, targetHouse, isolateNavigation, routeResult, darkMode]);
 
   // Render Active Walk Segments (each segment draws independently so Pause->Resume jumps never bridge with a straight line)
   useEffect(() => {
@@ -717,6 +733,96 @@ export default function VillageMap({
       L.marker([j.lat, j.lng], { icon: badgeIcon }).addTo(group);
     }
   }, [activeWalkSegments, draftJunctions, isolateNavigation, targetHouse]);
+
+  // Render Selected or Live Auto-Recorded Trip Road + Start/End Badges + Slow Simulator Arrow
+  useEffect(() => {
+    const group = autoTripLayerRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!autoTripOverlay || autoTripOverlay.points.length === 0) return;
+
+    const pts = autoTripOverlay.points;
+    const latlngs = pts.map((p) => [p.lat, p.lng] as [number, number]);
+
+    if (latlngs.length >= 2) {
+      L.polyline(latlngs, {
+        color: '#0c4a6e',
+        weight: 10,
+        opacity: 0.28,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(group);
+
+      L.polyline(latlngs, {
+        color: '#0284c7',
+        weight: 6,
+        opacity: 0.96,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(group);
+
+      let accum = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        accum += haversineMeters(a, b);
+        if (accum >= 24) {
+          accum = 0;
+          const brg = calculateBearing(a, b);
+          const arrowIcon = L.divIcon({
+            className: 'grampath-auto-arrow',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+            html: `<div style="width:14px;height:14px;display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1L10.5 10L6 7.8L1.5 10L6 1Z" fill="#ffffff" stroke="#0369a1" stroke-width="1"/></svg></div>`,
+          });
+          L.marker([b.lat, b.lng], {
+            icon: arrowIcon,
+            interactive: false,
+            rotateWithView: true,
+            rotation: (brg * Math.PI) / 180,
+          }).addTo(group);
+        }
+      }
+    }
+
+    const startPt = pts[0];
+    const startIcon = L.divIcon({
+      className: 'grampath-auto-start',
+      iconSize: [44, 20],
+      iconAnchor: [22, 10],
+      html: `<div style="height:20px;padding:0 7px;border-radius:6px;background:#059669;color:#ffffff;border:2px solid #ffffff;font-size:10px;font-weight:700;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(15,23,42,0.35);">Start</div>`,
+    });
+    L.marker([startPt.lat, startPt.lng], { icon: startIcon, zIndexOffset: 500 }).addTo(group);
+
+    if (pts.length >= 2) {
+      const endPt = pts[pts.length - 1];
+      const endIcon = L.divIcon({
+        className: 'grampath-auto-end',
+        iconSize: [38, 20],
+        iconAnchor: [19, 10],
+        html: `<div style="height:20px;padding:0 7px;border-radius:6px;background:#dc2626;color:#ffffff;border:2px solid #ffffff;font-size:10px;font-weight:700;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(15,23,42,0.35);">End</div>`,
+      });
+      L.marker([endPt.lat, endPt.lng], { icon: endIcon, zIndexOffset: 500 }).addTo(group);
+    }
+
+    if (autoTripOverlay.simPoint) {
+      const sp = autoTripOverlay.simPoint;
+      const simIcon = L.divIcon({
+        className: 'grampath-sim-walker',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        html: `<div style="width:34px;height:34px;border-radius:999px;background:rgba(245,158,11,0.28);display:flex;align-items:center;justify-content:center;"><div style="width:24px;height:24px;border-radius:999px;background:#d97706;border:2.5px solid #ffffff;box-shadow:0 2px 8px rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1L10.2 9.5L6 7.5L1.8 9.5L6 1Z" fill="#ffffff"/></svg></div></div>`,
+      });
+      L.marker([sp.lat, sp.lng], {
+        icon: simIcon,
+        zIndexOffset: 900,
+        rotateWithView: true,
+        rotation: (sp.headingDeg * Math.PI) / 180,
+      })
+        .bindTooltip('Simulator Position')
+        .addTo(group);
+    }
+  }, [autoTripOverlay]);
 
   // Render Alternative Routes & Live Split Navigation Route (Walked Behind vs Remaining Ahead)
   useEffect(() => {

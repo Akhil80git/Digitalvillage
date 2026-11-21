@@ -98,3 +98,17 @@ export interface VillageRouteResult {
   instructions: NavigationInstruction[];
   reason?: string;
 }
+
+export interface AutoTrip {
+  id: string;
+  name: string;
+  villageName: string;
+  surface: VillageRoad['surface'];
+  points: LatLngPoint[];
+  distanceMeters: number;
+  durationSeconds: number;
+  startedAt: string;
+  endedAt: string;
+  linkedRoadId?: string;
+  houses: VillageHouse[];
+}

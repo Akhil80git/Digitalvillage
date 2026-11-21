@@ -1,7 +1,8 @@
-import type { VillageHouse, VillageRoad } from '../types/map.ts';
+import type { AutoTrip, VillageHouse, VillageRoad } from '../types/map.ts';
 import { calculateBearing, offsetCoord } from './geo.ts';
 
 const STORAGE_KEY = 'grampath_house_mapper_v2';
+const AUTO_TRIPS_KEY = 'grampath_auto_trips_v1';
 
 export interface LocalHouseStore {
   roads: VillageRoad[];
@@ -136,4 +137,23 @@ export function clearLocalStore(): LocalHouseStore {
   const empty: LocalHouseStore = { roads: [], houses: [] };
   saveLocalStore(empty);
   return empty;
+}
+
+export function loadAutoTrips(): AutoTrip[] {
+  try {
+    const raw = localStorage.getItem(AUTO_TRIPS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as AutoTrip[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAutoTrips(trips: AutoTrip[]): void {
+  try {
+    localStorage.setItem(AUTO_TRIPS_KEY, JSON.stringify(trips));
+  } catch {
+    // ignore quota errors
+  }
 }
