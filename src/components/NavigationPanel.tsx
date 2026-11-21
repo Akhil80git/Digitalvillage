@@ -116,18 +116,18 @@ export default function NavigationPanel({
     haversineMeters(userLocation, { lat: targetHouse.roadLat, lng: targetHouse.roadLng }) <= 22;
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 overflow-y-auto">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto transition-colors">
       {/* User Location Header */}
-      <div className="p-4 border-b border-slate-200 space-y-2.5">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-2.5">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             {targetHouse
               ? `Navigating to House ${targetHouse.houseNumber}${
                   targetHouse.shopName ? ` · ${targetHouse.shopName}` : ''
                 }`
               : 'Find House or Shop'}
           </h2>
-          <p className="text-xs text-slate-500 font-mono tabular-nums mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums mt-0.5">
             My Spot: {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)}
           </p>
         </div>
@@ -139,7 +139,7 @@ export default function NavigationPanel({
             className={`py-2 px-2.5 text-xs font-medium rounded-lg border transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
               isLiveGps
                 ? 'bg-sky-700 border-sky-700 text-white'
-                : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
+                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
           >
             <LocateFixed className="w-3.5 h-3.5 shrink-0" />
@@ -152,7 +152,7 @@ export default function NavigationPanel({
             className={`py-2 px-2.5 text-xs font-medium rounded-lg border transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
               isPickingSpot
                 ? 'bg-emerald-700 border-emerald-700 text-white'
-                : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
+                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
           >
             <Crosshair className="w-3.5 h-3.5 shrink-0" />
@@ -166,19 +166,19 @@ export default function NavigationPanel({
         <div className="p-4 space-y-4 flex-1">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-sm font-bold text-slate-900 truncate">
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                 House {targetHouse.houseNumber} ·{' '}
                 {targetHouse.side === 'left' ? 'Left Side' : 'Right Side'}
               </div>
               {targetHouse.shopName && (
-                <div className="text-xs font-semibold text-emerald-800 truncate">
+                <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 truncate">
                   Shop: {targetHouse.shopName}
                 </div>
               )}
-              <div className="text-xs text-slate-500 truncate">
+              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {targetHouse.roadName} · {targetHouse.villageName}
               </div>
-              <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
+              <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium mt-0.5">
                 Isolated view: tracking only this house
               </div>
             </div>
@@ -190,8 +190,8 @@ export default function NavigationPanel({
                 aria-label="Toggle voice guidance"
                 className={`p-2 rounded-lg border text-xs cursor-pointer ${
                   voiceEnabled
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                    : 'bg-slate-50 border-slate-200 text-slate-600'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300'
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -199,7 +199,7 @@ export default function NavigationPanel({
               <button
                 type="button"
                 onClick={onExitNavigation}
-                className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                className="px-3 py-2 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
                 Show All
@@ -208,7 +208,7 @@ export default function NavigationPanel({
           </div>
 
           {!routeResult || !routeResult.reachable ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-900 dark:text-amber-200">
               {routeResult?.reason || 'No connected village road reaches this house yet.'}
             </div>
           ) : (
@@ -278,7 +278,7 @@ export default function NavigationPanel({
               {/* Available Routes Comparison when multiple village road paths exist */}
               {routeOptions.length > 1 && (
                 <div className="space-y-1.5">
-                  <div className="text-xs font-semibold text-slate-800">
+                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                     Available Routes ({routeOptions.length} paths found)
                   </div>
                   <div className="space-y-1.5">
@@ -291,19 +291,19 @@ export default function NavigationPanel({
                           onClick={() => onSelectRouteIndex(idx)}
                           className={`w-full p-2.5 rounded-xl border text-left transition-colors cursor-pointer ${
                             active
-                              ? 'bg-sky-50 border-sky-400'
-                              : 'bg-white border-slate-200 hover:bg-slate-50'
+                              ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-400 dark:border-sky-600'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-900">
+                          <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
                             <span>{opt.routeLabel ?? `Route ${idx + 1}`}</span>
-                            <span className="font-mono tabular-nums text-sky-800">
+                            <span className="font-mono tabular-nums text-sky-800 dark:text-sky-400">
                               {formatDistance(opt.totalDistanceMeters)} · {opt.walkMinutes}m walk /{' '}
                               {opt.bikeMinutes}m bike
                             </span>
                           </div>
                           {opt.viaSummary && (
-                            <div className="text-[11px] text-slate-600 truncate mt-0.5">
+                            <div className="text-[11px] text-slate-600 dark:text-slate-400 truncate mt-0.5">
                               Via {opt.viaSummary}
                             </div>
                           )}
@@ -315,8 +315,8 @@ export default function NavigationPanel({
               )}
 
               {/* Demo Walk Controls */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="text-xs font-medium text-slate-700">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+                <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   Follow Route (Live GPS or Desktop Test)
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -344,7 +344,7 @@ export default function NavigationPanel({
                   <button
                     type="button"
                     onClick={onStepNavSim}
-                    className="py-2 px-3 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-medium inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="py-2 px-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-medium inline-flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Step Forward
@@ -354,10 +354,10 @@ export default function NavigationPanel({
 
               {/* Turn-by-Turn Instructions */}
               <div>
-                <h3 className="text-xs font-semibold text-slate-900 mb-2">
+                <h3 className="text-xs font-semibold text-slate-900 dark:text-slate-100 mb-2">
                   Turn-by-Turn Route ({routeResult.instructions.length} steps)
                 </h3>
-                <div className="border border-slate-200 rounded-xl divide-y divide-slate-200">
+                <div className="border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-200 dark:divide-slate-800">
                   {routeResult.instructions.map((inst, idx) => {
                     const isCurrent = idx === currentStepIndex;
                     const isDone = idx < currentStepIndex;
@@ -370,10 +370,10 @@ export default function NavigationPanel({
                         }
                         className={`w-full p-3 text-left flex items-center justify-between gap-2.5 transition-colors cursor-pointer ${
                           isCurrent
-                            ? 'bg-emerald-50'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60'
                             : isDone
-                            ? 'bg-slate-50 opacity-60'
-                            : 'hover:bg-slate-50'
+                            ? 'bg-slate-50 dark:bg-slate-800/40 opacity-60'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -381,16 +381,16 @@ export default function NavigationPanel({
                             className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
                               isCurrent
                                 ? 'bg-emerald-700 text-white'
-                                : 'bg-slate-100 text-slate-700'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                             }`}
                           >
                             <TurnIcon turn={inst.turnType} className="w-4 h-4" />
                           </div>
-                          <span className="text-xs font-semibold text-slate-900 truncate">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
                             {inst.instruction}
                           </span>
                         </div>
-                        <span className="text-xs font-mono tabular-nums text-slate-600 shrink-0">
+                        <span className="text-xs font-mono tabular-nums text-slate-600 dark:text-slate-400 shrink-0">
                           {inst.distanceMeters > 0 ? formatDistance(inst.distanceMeters) : 'Goal'}
                         </span>
                       </button>
@@ -404,38 +404,40 @@ export default function NavigationPanel({
       ) : (
         /* House Quick List when not navigating */
         <div className="p-4 flex-1 space-y-3">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>Saved Houses (Closest first)</span>
             <span className="font-mono tabular-nums">{houses.length} houses</span>
           </div>
 
           {sortedHouses.length === 0 ? (
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-600">
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-xs text-slate-600 dark:text-slate-300">
               No houses mapped yet. Click <strong>Start Walk</strong> to walk a road and add Left /
               Right houses.
             </div>
           ) : (
-            <div className="border border-slate-200 rounded-xl divide-y divide-slate-200">
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-200 dark:divide-slate-800">
               {sortedHouses.map(({ house, dist }) => (
                 <div key={house.id} className="p-3 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 truncate">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                       House {house.houseNumber}{' '}
                       <span
                         className={`text-xs font-medium ${
-                          house.side === 'left' ? 'text-emerald-700' : 'text-amber-700'
+                          house.side === 'left'
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-amber-700 dark:text-amber-400'
                         }`}
                       >
                         · {house.side === 'left' ? 'Left' : 'Right'}
                       </span>
                       {house.shopName && (
-                        <span className="text-xs font-semibold text-sky-700">
+                        <span className="text-xs font-semibold text-sky-700 dark:text-sky-400">
                           {' '}
                           · {house.shopName}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500 truncate">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {house.roadName} ·{' '}
                       <span className="font-mono tabular-nums">{formatDistance(dist)}</span>
                     </div>

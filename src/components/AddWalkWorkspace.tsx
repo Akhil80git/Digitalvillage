@@ -54,6 +54,8 @@ export type StraightSymbolAction =
   | 'slight_right'
   | 'gentle_left'
   | 'gentle_right'
+  | 's_curve_left'
+  | 's_curve_right'
   | 'curve_left'
   | 'curve_right'
   | 'sharp_left'
@@ -278,11 +280,11 @@ export default function AddWalkWorkspace({
   const canUseRoadSteps = isRecording && !isPaused;
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-slate-50">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors">
       {/* Responsive Walk Toolbar */}
-      <div className="shrink-0 bg-white border-b border-slate-200 px-2 sm:px-4 py-1.5 flex items-center justify-between gap-2 z-20 overflow-x-auto no-scrollbar">
+      <div className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-2 sm:px-4 py-1.5 flex items-center justify-between gap-2 z-20 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg">
+          <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
             <button
               type="button"
               disabled={isRecording}
@@ -291,7 +293,7 @@ export default function AddWalkWorkspace({
               className={`px-2 py-1 text-[11px] font-medium rounded-md inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 ${
                 captureMode === 'straight_walk'
                   ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Ruler className="w-3 h-3" />
@@ -303,8 +305,8 @@ export default function AddWalkWorkspace({
               onClick={() => onChangeCaptureMode('gps_walk')}
               className={`px-2 py-1 text-[11px] font-medium rounded-md inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 ${
                 captureMode === 'gps_walk'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Footprints className="w-3 h-3" />
@@ -316,8 +318,8 @@ export default function AddWalkWorkspace({
               onClick={() => onChangeCaptureMode('manual_trace')}
               className={`px-2 py-1 text-[11px] font-medium rounded-md inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 ${
                 captureMode === 'manual_trace'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Pencil className="w-3 h-3" />
@@ -329,8 +331,8 @@ export default function AddWalkWorkspace({
               onClick={() => onChangeCaptureMode('simulated_walk')}
               className={`px-2 py-1 text-[11px] font-medium rounded-md inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 ${
                 captureMode === 'simulated_walk'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Compass className="w-3 h-3" />
@@ -344,8 +346,8 @@ export default function AddWalkWorkspace({
             title="Toggle ≤5m accurate GPS lock vs ≤15m indoor tolerance"
             className={`px-2 py-1 rounded-lg text-[11px] font-mono tabular-nums font-semibold border whitespace-nowrap shrink-0 cursor-pointer ${
               gpsPrecisionMode === 'accurate_5m'
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                : 'bg-slate-50 border-slate-300 text-slate-700'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300'
+                : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200'
             }`}
           >
             {gpsPrecisionMode === 'accurate_5m' ? '≤5m' : '≤15m'}
@@ -355,7 +357,7 @@ export default function AddWalkWorkspace({
             type="button"
             onClick={onLocateMe}
             aria-label="Center on GPS"
-            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0 cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer"
           >
             <Crosshair className="w-3.5 h-3.5" />
           </button>
@@ -363,11 +365,11 @@ export default function AddWalkWorkspace({
 
         {/* Live Telemetry & Recording Controls */}
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
-          <div className="hidden md:flex items-center gap-2 text-xs font-mono tabular-nums text-slate-600 px-2">
+          <div className="hidden md:flex items-center gap-2 text-xs font-mono tabular-nums text-slate-600 dark:text-slate-400 px-2">
             <span>{formatDistance(liveDistance)}</span>
-            <span className="text-slate-300">/</span>
+            <span className="text-slate-300 dark:text-slate-700">/</span>
             <span>{totalPoints} pts</span>
-            <span className="text-slate-300">/</span>
+            <span className="text-slate-300 dark:text-slate-700">/</span>
             <span>{formatDuration(elapsedSeconds)}</span>
           </div>
 
@@ -385,7 +387,7 @@ export default function AddWalkWorkspace({
               <button
                 type="button"
                 onClick={isRecording ? onPauseResume : onStartWalk}
-                className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+                className="px-2.5 py-1.5 bg-slate-900 dark:bg-emerald-700 hover:bg-slate-800 dark:hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
               >
                 {!isRecording || isPaused ? (
                   <>
@@ -405,7 +407,7 @@ export default function AddWalkWorkspace({
                 disabled={totalPoints === 0}
                 onClick={onUndoLastPoint}
                 title="Undo last point"
-                className="p-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 text-slate-700 rounded-lg cursor-pointer"
+                className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
@@ -414,7 +416,7 @@ export default function AddWalkWorkspace({
                 type="button"
                 disabled={!hasSavableSegment}
                 onClick={handleOpenSave}
-                className="px-2.5 py-1.5 bg-sky-700 hover:bg-sky-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+                className="px-2.5 py-1.5 bg-sky-700 hover:bg-sky-800 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
                 Save
@@ -424,7 +426,7 @@ export default function AddWalkWorkspace({
                 type="button"
                 onClick={onDiscardWalk}
                 title="Discard walk"
-                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg cursor-pointer"
+                className="p-1.5 bg-red-50 dark:bg-red-950/60 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-400 rounded-lg cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -435,9 +437,9 @@ export default function AddWalkWorkspace({
 
       {/* Pending Multi-Branch Junction Queue */}
       {pendingBranches.length > 0 && (
-        <div className="shrink-0 bg-amber-50/90 border-b border-amber-200 px-2.5 sm:px-3 py-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar z-10">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900 whitespace-nowrap shrink-0">
-            <GitBranch className="w-3.5 h-3.5 text-amber-700" />
+        <div className="shrink-0 bg-amber-50/90 dark:bg-amber-950/50 border-b border-amber-200 dark:border-amber-800 px-2.5 sm:px-3 py-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar z-10">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900 dark:text-amber-200 whitespace-nowrap shrink-0">
+            <GitBranch className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
             <span>Pending ({pendingBranches.length}):</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -448,14 +450,14 @@ export default function AddWalkWorkspace({
                   key={`${item.junction.id}-${item.branch.id}`}
                   type="button"
                   onClick={() => onSelectPendingBranch(item.junction, item.branch.id)}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-[11px] font-semibold text-amber-950 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs cursor-pointer transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700 text-[11px] font-semibold text-amber-950 dark:text-amber-200 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs cursor-pointer transition-colors"
                 >
-                  <DirectionGlyph dir={item.branch.direction} className="w-3 h-3 text-amber-700" />
+                  <DirectionGlyph dir={item.branch.direction} className="w-3 h-3 text-amber-700 dark:text-amber-400" />
                   <span>
                     Map {item.branch.label}
                     {item.sourceRoadName ? ` (${item.sourceRoadName})` : ''}
                   </span>
-                  <span className="font-mono tabular-nums text-[10px] text-amber-700">
+                  <span className="font-mono tabular-nums text-[10px] text-amber-700 dark:text-amber-400">
                     {distM <= 2000 ? `${distM}m` : ''}
                   </span>
                 </button>
@@ -467,7 +469,7 @@ export default function AddWalkWorkspace({
 
       {/* Paused or Active Branch Status Strip */}
       {((isRecording && isPaused) || activeBranchLabel) && (
-        <div className="shrink-0 bg-sky-50 border-b border-sky-200 px-3 py-1 flex items-center justify-between gap-2 text-[11px] text-sky-900">
+        <div className="shrink-0 bg-sky-50 dark:bg-sky-950/60 border-b border-sky-200 dark:border-sky-800 px-3 py-1 flex items-center justify-between gap-2 text-[11px] text-sky-900 dark:text-sky-200">
           <span className="truncate font-medium">
             {isPaused
               ? 'Paused · Live GPS active — move to next spot and press Resume'
@@ -477,7 +479,7 @@ export default function AddWalkWorkspace({
             <button
               type="button"
               onClick={onPauseResume}
-              className="font-bold underline text-sky-950 shrink-0 cursor-pointer"
+              className="font-bold underline text-sky-950 dark:text-sky-100 shrink-0 cursor-pointer"
             >
               Resume
             </button>
@@ -518,16 +520,16 @@ export default function AddWalkWorkspace({
       {/* SPACIOUS 3-COLUMN WORKSPACE: [SLIM LEFT] | [FULL UNOBSTRUCTED CENTER MAP] | [SLIM RIGHT] */}
       <div className="flex-1 min-h-0 flex items-stretch overflow-hidden">
         {/* LEFT HOUSE RAIL */}
-        <aside className="w-[54px] sm:w-24 md:w-28 shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between p-1 sm:p-2 z-10">
+        <aside className="w-[54px] sm:w-24 md:w-28 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between p-1 sm:p-2 z-10">
           <div className="space-y-1">
-            <div className="text-[10px] sm:text-xs font-bold text-emerald-800 text-center">
+            <div className="text-[10px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-400 text-center">
               Left
             </div>
             <button
               type="button"
               disabled={!houseInput.trim()}
               onClick={() => handleTagHouse('left')}
-              className="w-full min-h-[56px] sm:min-h-[72px] px-1 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-sm transition cursor-pointer"
+              className="w-full min-h-[56px] sm:min-h-[72px] px-1 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-sm transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-bold font-mono tabular-nums leading-tight">
@@ -548,16 +550,16 @@ export default function AddWalkWorkspace({
                 <div
                   key={h.id}
                   title={h.shopName ? `${h.houseNumber} · ${h.shopName}` : h.houseNumber}
-                  className="px-1 sm:px-1.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md flex items-center justify-between gap-0.5 text-[11px]"
+                  className="px-1 sm:px-1.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-md flex items-center justify-between gap-0.5 text-[11px]"
                 >
-                  <span className="font-mono font-bold text-emerald-900 truncate flex items-center gap-0.5 min-w-0">
-                    {h.shopName && <Store className="w-2.5 h-2.5 text-emerald-700 shrink-0" />}
+                  <span className="font-mono font-bold text-emerald-900 dark:text-emerald-300 truncate flex items-center gap-0.5 min-w-0">
+                    {h.shopName && <Store className="w-2.5 h-2.5 text-emerald-700 dark:text-emerald-400 shrink-0" />}
                     <span className="truncate">{h.houseNumber}</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => onRemoveDraftHouse(h.id)}
-                    className="text-emerald-700/70 hover:text-red-600 shrink-0 cursor-pointer"
+                    className="text-emerald-700/70 dark:text-emerald-400/70 hover:text-red-600 shrink-0 cursor-pointer"
                     aria-label={`Remove left house ${h.houseNumber}`}
                   >
                     <X className="w-3 h-3" />
@@ -566,7 +568,7 @@ export default function AddWalkWorkspace({
               ))}
           </div>
 
-          <div className="text-[10px] font-mono tabular-nums text-center text-slate-500 md:hidden">
+          <div className="text-[10px] font-mono tabular-nums text-center text-slate-500 dark:text-slate-400 md:hidden">
             {formatDistance(liveDistance)}
           </div>
         </aside>
@@ -575,16 +577,16 @@ export default function AddWalkWorkspace({
         <section className="flex-1 min-w-0 h-full relative">{mapSlot}</section>
 
         {/* RIGHT HOUSE RAIL */}
-        <aside className="w-[54px] sm:w-24 md:w-28 shrink-0 bg-white border-l border-slate-200 flex flex-col justify-between p-1 sm:p-2 z-10">
+        <aside className="w-[54px] sm:w-24 md:w-28 shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col justify-between p-1 sm:p-2 z-10">
           <div className="space-y-1">
-            <div className="text-[10px] sm:text-xs font-bold text-amber-700 text-center">
+            <div className="text-[10px] sm:text-xs font-bold text-amber-700 dark:text-amber-400 text-center">
               Right
             </div>
             <button
               type="button"
               disabled={!houseInput.trim()}
               onClick={() => handleTagHouse('right')}
-              className="w-full min-h-[56px] sm:min-h-[72px] px-1 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-sm transition cursor-pointer"
+              className="w-full min-h-[56px] sm:min-h-[72px] px-1 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-sm transition cursor-pointer"
             >
               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-bold font-mono tabular-nums leading-tight">
@@ -605,16 +607,16 @@ export default function AddWalkWorkspace({
                 <div
                   key={h.id}
                   title={h.shopName ? `${h.houseNumber} · ${h.shopName}` : h.houseNumber}
-                  className="px-1 sm:px-1.5 py-1 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between gap-0.5 text-[11px]"
+                  className="px-1 sm:px-1.5 py-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-md flex items-center justify-between gap-0.5 text-[11px]"
                 >
-                  <span className="font-mono font-bold text-amber-900 truncate flex items-center gap-0.5 min-w-0">
-                    {h.shopName && <Store className="w-2.5 h-2.5 text-amber-700 shrink-0" />}
+                  <span className="font-mono font-bold text-amber-900 dark:text-amber-300 truncate flex items-center gap-0.5 min-w-0">
+                    {h.shopName && <Store className="w-2.5 h-2.5 text-amber-700 dark:text-amber-400 shrink-0" />}
                     <span className="truncate">{h.houseNumber}</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => onRemoveDraftHouse(h.id)}
-                    className="text-amber-700/70 hover:text-red-600 shrink-0 cursor-pointer"
+                    className="text-amber-700/70 dark:text-amber-400/70 hover:text-red-600 shrink-0 cursor-pointer"
                     aria-label={`Remove right house ${h.houseNumber}`}
                   >
                     <X className="w-3 h-3" />
@@ -623,14 +625,14 @@ export default function AddWalkWorkspace({
               ))}
           </div>
 
-          <div className="text-[10px] font-mono tabular-nums text-center text-slate-500 md:hidden">
+          <div className="text-[10px] font-mono tabular-nums text-center text-slate-500 dark:text-slate-400 md:hidden">
             {totalPoints} pts
           </div>
         </aside>
       </div>
 
       {/* BOTTOM DOCK: HORIZONTAL SCROLLABLE ROAD STEPS + HOUSE NUMBER & SHOP BAR */}
-      <div className="shrink-0 relative bg-white border-t border-slate-200 z-30">
+      <div className="shrink-0 relative bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-30">
         {/* 2/3/4-Way Multi-Branch Junction Popover (anchored cleanly above bottom dock when toggled) */}
         {junctionOpen && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[calc(100%-1rem)] max-w-md z-[480] bg-slate-900 text-white rounded-2xl shadow-xl border border-slate-700 p-3 space-y-2.5">
@@ -717,7 +719,7 @@ export default function AddWalkWorkspace({
 
         {/* Horizontally Scrollable Icon-Only Road Geometry & Turn Steps Bar (Left <-> Right swipe) */}
         {captureMode === 'straight_walk' && (
-          <div className="border-b border-slate-100 bg-slate-50/80 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             {!canUseRoadSteps ? (
               <button
                 type="button"
@@ -733,7 +735,7 @@ export default function AddWalkWorkspace({
               <>
                 <span
                   title="Current straight road heading"
-                  className="px-2 h-10 inline-flex items-center rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] font-mono tabular-nums font-bold text-emerald-800 whitespace-nowrap shrink-0"
+                  className="px-2 h-10 inline-flex items-center rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-mono tabular-nums font-bold text-emerald-800 dark:text-emerald-300 whitespace-nowrap shrink-0"
                 >
                   {straightHeadingDeg != null ? `${Math.round(straightHeadingDeg)}°` : 'Auto'}
                 </span>
@@ -749,13 +751,13 @@ export default function AddWalkWorkspace({
                   <ArrowUp className="w-5 h-5" />
                 </button>
 
-                {/* Long Gentle Bend Left (less than curve, longer run) */}
+                {/* Long Gentle Bend Left */}
                 <button
                   type="button"
                   onClick={() => onStraightSymbol('gentle_left')}
                   title="Long Gentle Left Bend"
                   aria-label="Long gentle left bend"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-emerald-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <svg
                     className="w-5 h-5"
@@ -771,13 +773,13 @@ export default function AddWalkWorkspace({
                   </svg>
                 </button>
 
-                {/* Long Gentle Bend Right (less than curve, longer run) */}
+                {/* Long Gentle Bend Right */}
                 <button
                   type="button"
                   onClick={() => onStraightSymbol('gentle_right')}
                   title="Long Gentle Right Bend"
                   aria-label="Long gentle right bend"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-emerald-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <svg
                     className="w-5 h-5"
@@ -793,13 +795,57 @@ export default function AddWalkWorkspace({
                   </svg>
                 </button>
 
+                {/* Side Shift / S-Bend Right (│ + ╰╮) */}
+                <button
+                  type="button"
+                  onClick={() => onStraightSymbol('s_curve_right')}
+                  title="Side Shift Right (S-Bend)"
+                  aria-label="Side shift right"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M8 21V16C8 12.5 16 11.5 16 8V3.5" />
+                    <path d="M13 6L16 3L19 6" />
+                  </svg>
+                </button>
+
+                {/* Side Shift / S-Bend Left */}
+                <button
+                  type="button"
+                  onClick={() => onStraightSymbol('s_curve_left')}
+                  title="Side Shift Left (S-Bend)"
+                  aria-label="Side shift left"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M16 21V16C16 12.5 8 11.5 8 8V3.5" />
+                    <path d="M5 6L8 3L11 6" />
+                  </svg>
+                </button>
+
                 {/* Slight Left */}
                 <button
                   type="button"
                   onClick={() => onStraightSymbol('slight_left')}
                   title="Slight Left"
                   aria-label="Slight left turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-sky-50 border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sky-700 dark:text-sky-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <ArrowUpLeft className="w-5 h-5" />
                 </button>
@@ -810,7 +856,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('slight_right')}
                   title="Slight Right"
                   aria-label="Slight right turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-sky-50 border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sky-700 dark:text-sky-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <ArrowUpRight className="w-5 h-5" />
                 </button>
@@ -821,7 +867,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('curve_left')}
                   title="Smooth Curve Left"
                   aria-label="Smooth curve left"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-sky-50 border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sky-700 dark:text-sky-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <svg
                     className="w-5 h-5"
@@ -843,7 +889,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('curve_right')}
                   title="Smooth Curve Right"
                   aria-label="Smooth curve right"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-sky-50 border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sky-700 dark:text-sky-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <svg
                     className="w-5 h-5"
@@ -865,7 +911,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('turn_left')}
                   title="Left Turn"
                   aria-label="Left turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-emerald-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <CornerUpLeft className="w-5 h-5" />
                 </button>
@@ -876,7 +922,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('turn_right')}
                   title="Right Turn"
                   aria-label="Right turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-emerald-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <CornerUpRight className="w-5 h-5" />
                 </button>
@@ -887,7 +933,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('sharp_left')}
                   title="Sharp Left"
                   aria-label="Sharp left turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-amber-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <CornerDownLeft className="w-5 h-5" />
                 </button>
@@ -898,7 +944,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('sharp_right')}
                   title="Sharp Right"
                   aria-label="Sharp right turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-amber-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <CornerDownRight className="w-5 h-5" />
                 </button>
@@ -909,7 +955,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('u_turn')}
                   title="U-Turn"
                   aria-label="U-turn"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-rose-50 border border-slate-200 text-rose-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-rose-700 dark:text-rose-400 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <svg
                     className="w-5 h-5"
@@ -931,7 +977,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('nudge_left')}
                   title="Adjust angle left"
                   aria-label="Adjust angle left"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -942,7 +988,7 @@ export default function AddWalkWorkspace({
                   onClick={() => onStraightSymbol('nudge_right')}
                   title="Adjust angle right"
                   aria-label="Adjust angle right"
-                  className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
                 >
                   <RotateCw className="w-4 h-4" />
                 </button>
@@ -955,8 +1001,8 @@ export default function AddWalkWorkspace({
                   aria-label="2-way junction"
                   className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 cursor-pointer ${
                     junctionOpen && waysCount === 2
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+                      ? 'bg-slate-900 dark:bg-amber-600 text-white border-slate-900 dark:border-amber-500'
+                      : 'bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-300'
                   }`}
                 >
                   <svg
@@ -984,8 +1030,8 @@ export default function AddWalkWorkspace({
                   aria-label="3-way junction"
                   className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 cursor-pointer ${
                     junctionOpen && waysCount === 3
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+                      ? 'bg-slate-900 dark:bg-amber-600 text-white border-slate-900 dark:border-amber-500'
+                      : 'bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-300'
                   }`}
                 >
                   <svg
@@ -1014,8 +1060,8 @@ export default function AddWalkWorkspace({
                   aria-label="4-way junction"
                   className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 cursor-pointer ${
                     junctionOpen && waysCount === 4
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+                      ? 'bg-slate-900 dark:bg-amber-600 text-white border-slate-900 dark:border-amber-500'
+                      : 'bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-300'
                   }`}
                 >
                   <svg
@@ -1042,8 +1088,8 @@ export default function AddWalkWorkspace({
 
         {/* Test Walk Horizontal Bottom Controls */}
         {captureMode === 'simulated_walk' && canUseRoadSteps && (
-          <div className="border-b border-slate-100 bg-slate-50/80 px-2.5 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] font-semibold text-slate-500 whitespace-nowrap shrink-0 mr-1">
+          <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 px-2.5 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0 mr-1">
               Test Steps:
             </span>
             <button
@@ -1056,21 +1102,21 @@ export default function AddWalkWorkspace({
             <button
               type="button"
               onClick={() => onSimulateStep(-0.00012, 0)}
-              className="h-9 px-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-800 whitespace-nowrap shrink-0 cursor-pointer"
+              className="h-9 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap shrink-0 cursor-pointer"
             >
               South
             </button>
             <button
               type="button"
               onClick={() => onSimulateStep(0, -0.00012)}
-              className="h-9 px-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-800 whitespace-nowrap shrink-0 cursor-pointer"
+              className="h-9 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap shrink-0 cursor-pointer"
             >
               West
             </button>
             <button
               type="button"
               onClick={() => onSimulateStep(0, 0.00012)}
-              className="h-9 px-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-800 whitespace-nowrap shrink-0 cursor-pointer"
+              className="h-9 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap shrink-0 cursor-pointer"
             >
               East
             </button>
@@ -1082,15 +1128,15 @@ export default function AddWalkWorkspace({
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2">
             {/* House Number Stepper */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[11px] sm:text-xs font-semibold text-slate-700 whitespace-nowrap">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                 House
               </span>
-              <div className="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-slate-50">
+              <div className="flex items-center border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800">
                 <button
                   type="button"
                   onClick={() => adjustHouseNumber(-1)}
                   aria-label="Decrease house number"
-                  className="w-9 sm:w-10 h-10 flex items-center justify-center hover:bg-slate-200 text-slate-700 cursor-pointer"
+                  className="w-9 sm:w-10 h-10 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
@@ -1099,13 +1145,13 @@ export default function AddWalkWorkspace({
                   value={houseInput}
                   onChange={(e) => setHouseInput(e.target.value)}
                   aria-label="House number to tag"
-                  className="w-12 sm:w-16 h-10 text-center bg-white text-sm font-bold font-mono tabular-nums text-slate-900 border-x border-slate-200 focus:outline-none"
+                  className="w-12 sm:w-16 h-10 text-center bg-white dark:bg-slate-900 text-sm font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100 border-x border-slate-200 dark:border-slate-700 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => adjustHouseNumber(1)}
                   aria-label="Increase house number"
-                  className="w-9 sm:w-10 h-10 flex items-center justify-center hover:bg-slate-200 text-slate-700 cursor-pointer"
+                  className="w-9 sm:w-10 h-10 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -1113,22 +1159,22 @@ export default function AddWalkWorkspace({
             </div>
 
             {/* Optional Shop / Dukan Name Input */}
-            <div className="flex-1 min-w-[140px] flex items-center h-10 bg-slate-50 border border-slate-200 rounded-xl px-2.5 gap-1.5 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white">
-              <Store className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <div className="flex-1 min-w-[140px] flex items-center h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 gap-1.5 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white dark:focus-within:bg-slate-900">
+              <Store className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
               <input
                 type="text"
                 value={shopName}
                 onChange={(e) => setShopName(e.target.value)}
                 placeholder="Shop / Dukan name (optional)..."
                 aria-label="Shop or dukan name"
-                className="w-full min-w-0 text-xs text-slate-900 bg-transparent focus:outline-none"
+                className="w-full min-w-0 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-transparent focus:outline-none"
               />
               {shopName && (
                 <button
                   type="button"
                   onClick={() => setShopName('')}
                   aria-label="Clear shop name"
-                  className="text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1143,8 +1189,8 @@ export default function AddWalkWorkspace({
               aria-label="Toggle optional note"
               className={`h-10 px-2.5 rounded-xl border text-xs font-medium inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer ${
                 showNoteField || houseNote.trim()
-                  ? 'bg-sky-50 border-sky-300 text-sky-800'
-                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                  ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-300 dark:border-sky-700 text-sky-800 dark:text-sky-300'
+                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <StickyNote className="w-3.5 h-3.5" />
@@ -1156,7 +1202,7 @@ export default function AddWalkWorkspace({
                 type="button"
                 onClick={() => setHouseInput(nextSuggestedHouse)}
                 title={`Continue from ${nextSuggestedHouse}`}
-                className="px-2.5 h-10 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-mono font-semibold rounded-xl whitespace-nowrap shrink-0 cursor-pointer"
+                className="px-2.5 h-10 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 text-xs font-mono font-semibold rounded-xl whitespace-nowrap shrink-0 cursor-pointer"
               >
                 {nextSuggestedHouse}
               </button>
@@ -1169,7 +1215,7 @@ export default function AddWalkWorkspace({
               value={houseNote}
               onChange={(e) => setHouseNote(e.target.value)}
               placeholder="Landmark note (mandir, well, gate)..."
-              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              className="w-full h-9 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-600"
             />
           )}
         </div>
@@ -1177,29 +1223,31 @@ export default function AddWalkWorkspace({
 
       {/* Save Walked Road & Tagged Houses Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 z-[1200] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[1200] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <form
             onSubmit={handleFinishSubmit}
-            className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4"
+            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4"
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Save Walked Road</h3>
-                <p className="text-xs text-slate-500 font-mono tabular-nums mt-0.5">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  Save Walked Road
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums mt-0.5">
                   {formatDistance(liveDistance)} · {totalPoints} pts · {draftHouses.length} houses
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSaveModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Road / Gali Name
               </label>
               <input
@@ -1209,13 +1257,13 @@ export default function AddWalkWorkspace({
                 placeholder="e.g. Mandir Gali, Ward 4 Road"
                 value={roadName}
                 onChange={(e) => setRoadName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm"
+                className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Village Name
                 </label>
                 <input
@@ -1223,15 +1271,17 @@ export default function AddWalkWorkspace({
                   required
                   value={villageName}
                   onChange={(e) => setVillageName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Surface</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Surface
+                </label>
                 <select
                   value={surface}
                   onChange={(e) => setSurface(e.target.value as VillageRoad['surface'])}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                 >
                   <option value="concrete">CC Road</option>
                   <option value="cobblestone">Brick / Kharanja</option>
@@ -1245,7 +1295,7 @@ export default function AddWalkWorkspace({
               <button
                 type="button"
                 onClick={() => setShowSaveModal(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
               >
                 Keep Walking
               </button>

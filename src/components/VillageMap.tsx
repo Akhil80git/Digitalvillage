@@ -37,7 +37,9 @@ interface VillageMapProps {
   routeResult: VillageRouteResult | null;
   alternativeRoutes?: VillageRouteResult[];
   liveProgress?: LiveRouteProgress | null;
+  startHouse?: VillageHouse | null;
   targetHouse: VillageHouse | null;
+  darkMode?: boolean;
   isolateNavigation: boolean;
   activeInstruction: NavigationInstruction | null;
   distanceToNextTurnMeters: number | null;
@@ -97,7 +99,9 @@ export default function VillageMap({
   routeResult,
   alternativeRoutes = [],
   liveProgress = null,
+  startHouse = null,
   targetHouse,
+  darkMode = false,
   isolateNavigation,
   activeInstruction,
   distanceToNextTurnMeters,
@@ -426,14 +430,17 @@ export default function VillageMap({
 
     for (const h of visibleHouses) {
       const isTarget = targetHouse?.id === h.id;
+      const isStart = startHouse?.id === h.id;
       const bg = isTarget
         ? '#dc2626'
+        : isStart
+        ? '#0284c7'
         : h.side === 'left'
         ? '#15803d'
         : '#d97706';
 
       const hasRouteConnector =
-        isTarget && Boolean(routeResult?.reachable && routeResult.polyline.length >= 2);
+        (isTarget || isStart) && Boolean(routeResult?.reachable && routeResult.polyline.length >= 2);
       if (!hasRouteConnector) {
         L.polyline(
           [
@@ -450,31 +457,37 @@ export default function VillageMap({
       }
 
       const hasShop = Boolean(h.shopName?.trim());
+      const rolePrefix = isStart ? 'A·' : isTarget && startHouse ? 'B·' : '';
       const shopTag = hasShop
         ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:3px;flex-shrink:0;"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8"/></svg>`
         : '';
+      const labelW = (hasShop ? 44 : 30) + (rolePrefix ? 14 : 0);
       const icon = L.divIcon({
         className: 'grampath-marker-icon',
-        iconSize: [hasShop ? 44 : 30, 24],
-        iconAnchor: [hasShop ? 22 : 15, 12],
-        html: `<div style="min-width:${hasShop ? 40 : 28}px;height:22px;padding:0 6px;border-radius:6px;background:${bg};color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,0.35);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;font-family:'JetBrains Mono',monospace;">${h.houseNumber}${shopTag}</div>`,
+        iconSize: [labelW, 24],
+        iconAnchor: [Math.round(labelW / 2), 12],
+        html: `<div style="min-width:${labelW - 2}px;height:22px;padding:0 6px;border-radius:6px;background:${bg};color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,0.35);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;font-family:'JetBrains Mono',monospace;">${rolePrefix}${h.houseNumber}${shopTag}</div>`,
       });
 
       const marker = L.marker([h.lat, h.lng], { icon });
       const popupEl = document.createElement('div');
       popupEl.style.fontSize = '12px';
       popupEl.style.minWidth = '155px';
+      const titleColor = darkMode ? '#f1f5f9' : '#0f172a';
+      const shopColor = darkMode ? '#34d399' : '#047857';
+      const roadColor = darkMode ? '#94a3b8' : '#475569';
+      const noteColor = darkMode ? '#cbd5e1' : '#334155';
       popupEl.innerHTML = `
-        <div style="font-weight:700;color:#0f172a;font-size:13px;">House ${h.houseNumber} (${
+        <div style="font-weight:700;color:${titleColor};font-size:13px;">House ${h.houseNumber} (${
         h.side === 'left' ? 'Left' : 'Right'
       })</div>
         ${
           hasShop
-            ? `<div style="font-weight:600;color:#047857;margin-top:2px;">Shop: ${h.shopName}</div>`
+            ? `<div style="font-weight:600;color:${shopColor};margin-top:2px;">Shop: ${h.shopName}</div>`
             : ''
         }
-        <div style="color:#475569;margin-top:2px;">${h.roadName}</div>
-        ${h.note ? `<div style="color:#334155;margin-top:4px;">${h.note}</div>` : ''}
+        <div style="color:${roadColor};margin-top:2px;">${h.roadName}</div>
+        ${h.note ? `<div style="color:${noteColor};margin-top:4px;">${h.note}</div>` : ''}
       `;
 
       if (!isTarget) {
@@ -501,7 +514,7 @@ export default function VillageMap({
       marker.bindPopup(popupEl);
       marker.addTo(group);
     }
-  }, [houses, draftHouses, targetHouse, isolateNavigation, routeResult]);
+  }, [houses, draftHouses, startHouse, targetHouse, isolateNavigation, routeResult, darkMode]);
 
   // Render Active Walk Segments (each segment draws independently so Pause->Resume jumps never bridge with a straight line)
   useEffect(() => {
@@ -718,6 +731,38 @@ export default function VillageMap({
       }).addTo(group);
     }
 
+    // Start house (Point A) dotted connector + dot when checking route between 2 houses in Preview
+    if (startHouse && routeResult.polyline.length >= 1) {
+      const startRoadPt = routeResult.polyline[0];
+      L.polyline(
+        [
+          [startHouse.lat, startHouse.lng],
+          [startRoadPt.lat, startRoadPt.lng],
+        ],
+        {
+          color: '#0284c7',
+          weight: 2.5,
+          opacity: 0.9,
+          dashArray: '3 5',
+          lineCap: 'round',
+        }
+      ).addTo(group);
+
+      L.circleMarker([startRoadPt.lat, startRoadPt.lng], {
+        radius: 6,
+        color: '#ffffff',
+        weight: 2.5,
+        fillColor: '#059669',
+        fillOpacity: 1,
+      })
+        .bindTooltip(
+          `Start: House ${startHouse.houseNumber}${
+            startHouse.shopName ? ` (${startHouse.shopName})` : ''
+          }`
+        )
+        .addTo(group);
+    }
+
     // End route strictly on the road with a clear stop dot + dotted pointer beside it to the house
     const routeEndPt = aheadPts[aheadPts.length - 1];
     if (routeEndPt) {
@@ -749,7 +794,7 @@ export default function VillageMap({
         )
         .addTo(group);
     }
-  }, [routeResult, alternativeRoutes, liveProgress, targetHouse, activeInstruction]);
+  }, [routeResult, alternativeRoutes, liveProgress, startHouse, targetHouse, activeInstruction]);
 
   // Render Live GPS User Position + Heading Arrow (rotates accurately with map view)
   useEffect(() => {
@@ -796,7 +841,10 @@ export default function VillageMap({
 
   return (
     <div className="relative w-full h-full">
-      <div ref={containerRef} className="w-full h-full z-0" />
+      <div
+        ref={containerRef}
+        className={`w-full h-full z-0 ${baseLayer !== 'satellite' ? 'grampath-dark-osm' : ''}`}
+      />
 
       {/* Live GPS Precision Readout & Quick Controls (Top Left) */}
       <div
@@ -810,8 +858,8 @@ export default function VillageMap({
               gpsQuality.quality === 'ultra'
                 ? 'bg-emerald-900/90 text-emerald-100 border-emerald-700'
                 : gpsQuality.quality === 'good'
-                ? 'bg-white/95 text-slate-800 border-slate-200'
-                : 'bg-amber-50/95 text-amber-900 border-amber-300'
+                ? 'bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-700'
+                : 'bg-amber-50/95 dark:bg-amber-950/90 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700'
             }`}
           >
             GPS {gpsQuality.label}
@@ -830,7 +878,7 @@ export default function VillageMap({
               className={`px-2.5 py-1 rounded-lg border shadow-sm cursor-pointer inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold transition-colors ${
                 isFollowingGps
                   ? 'bg-sky-600 text-white border-sky-700 hover:bg-sky-700'
-                  : 'bg-white/95 text-slate-800 border-slate-200 hover:bg-slate-100'
+                  : 'bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <Crosshair className="w-3.5 h-3.5" />
@@ -843,7 +891,7 @@ export default function VillageMap({
           <button
             type="button"
             onClick={onExitNavigation}
-            className="pointer-events-auto px-2.5 py-1 rounded-lg bg-white/95 hover:bg-red-50 text-red-700 border border-slate-200 text-[11px] font-semibold shadow-sm cursor-pointer whitespace-nowrap"
+            className="pointer-events-auto px-2.5 py-1 rounded-lg bg-white/95 dark:bg-slate-900/95 hover:bg-red-50 dark:hover:bg-red-950/70 text-red-700 dark:text-red-400 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold shadow-sm cursor-pointer whitespace-nowrap"
           >
             Exit {targetHouse.houseNumber} · Show All
           </button>
@@ -856,7 +904,7 @@ export default function VillageMap({
           topControlsOffset ? 'top-14' : 'top-2.5'
         } right-2.5 z-[400] flex flex-col items-end gap-1.5 transition-all`}
       >
-        <div className="flex items-center gap-0.5 p-0.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm">
+        <div className="flex items-center gap-0.5 p-0.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
           {(Object.keys(TILE_LAYERS) as BaseLayerId[]).map((id) => (
             <button
               key={id}
@@ -864,8 +912,8 @@ export default function VillageMap({
               onClick={() => setBaseLayer(id)}
               className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 baseLayer === id
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-slate-900 dark:bg-emerald-600 text-white'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {TILE_LAYERS[id].label}
@@ -874,12 +922,12 @@ export default function VillageMap({
         </div>
 
         {/* Map Rotation Bar: Free Twist/Rotate or North-Up / Heading-Up */}
-        <div className="flex items-center gap-0.5 p-0.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm">
+        <div className="flex items-center gap-0.5 p-0.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
           <button
             type="button"
             onClick={() => setBearingManually(mapBearing - 45)}
             title="Rotate map left 45° (or two-finger twist)"
-            className="p-1 text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer"
+            className="p-1 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -906,8 +954,8 @@ export default function VillageMap({
               autoRotateHeading
                 ? 'bg-emerald-700 text-white'
                 : mapBearing !== 0
-                ? 'bg-amber-100 text-amber-900'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Compass
@@ -923,7 +971,7 @@ export default function VillageMap({
             type="button"
             onClick={() => setBearingManually(mapBearing + 45)}
             title="Rotate map right 45° (or two-finger twist)"
-            className="p-1 text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer"
+            className="p-1 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer"
           >
             <RotateCw className="w-3.5 h-3.5" />
           </button>
